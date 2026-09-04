@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Text Reader V2
+GenericName=Text to Speech
+Comment=Read text aloud using Piper
+Exec=/home/melissa/Work/TextReaderV2/linux/run-text-reader
+Icon=audio-speakers
+Terminal=false
+Categories=AudioVideo;Audio;
+Keywords=text;speech;tts;reader;piper;
+StartupNotify=true
+StartupWMClass=com.local.TextReaderV2
