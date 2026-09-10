@@ -24,6 +24,8 @@ from gi.repository import GLib, Gst, Gtk  # noqa: E402
 
 import requests  # noqa: E402
 
+from pronunciation import prepare_kokoro_text  # noqa: E402
+
 
 APP_ID = "com.local.TextReaderV2"
 PIPER_BASE_URL = "http://127.0.0.1:5000"
@@ -505,7 +507,9 @@ class TextReaderWindow(Gtk.ApplicationWindow):
         if engine == "kokoro":
             url = f"{KOKORO_BASE_URL}/v1/audio/speech"
             payload: dict[str, Any] = {
-                "model": "kokoro", "input": self.speech_chunks[index],
+                "model": "kokoro", "input": prepare_kokoro_text(
+                    self.speech_chunks[index], voice or "af_heart"
+                ),
                 "voice": voice or "af_heart", "response_format": "wav", "speed": speed,
             }
         else:

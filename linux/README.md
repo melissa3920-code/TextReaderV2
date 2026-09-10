@@ -48,3 +48,32 @@ reduce pauses between sections. The **Special characters** list can preserve
 the input, remove Unicode symbols, or speak common symbols (for example,
 `&` as “and” and `%` as “percent”). These choices and the voice selected for
 each engine are saved in the settings file.
+
+## Contextual English pronunciation
+
+Kokoro English voices now receive speech-only pronunciation hints for `read`,
+`bass`, `bow`, `wind`, `tear`, and `lead` when nearby context identifies a sense.
+The reader uses Misaki's supported `[word](/phonemes/)` syntax; the server's
+existing Misaki/POS frontend handles `record`, `present`, `object`, and `conduct`.
+No additional reader dependency is required. This requires a Kokoro-FastAPI
+server using the English Misaki frontend with inline pronunciation support.
+See the [Misaki documentation](https://github.com/hexgrad/misaki#english-usage).
+
+Hints are added only to the outgoing Kokoro English request after cleanup and
+chunking. Displayed/saved text, Piper requests, and other languages retain their
+existing behavior. Conflicting or absent cues fall back to normal G2P. These are
+conservative local rules, not full semantic understanding; clues across chunk
+or clause boundaries may be missed. Existing inline overrides take precedence.
+
+Run the reader regression checks from the repository root:
+
+```bash
+python -m unittest discover -s linux -p 'test_*.py' -v
+python -m compileall -q linux/*.py
+```
+
+Run the same unittest command with the Kokoro server environment's Python to
+also verify the 22 regression sentences against actual Misaki phonemes. The
+Misaki check skips when that dependency is unavailable; GTK integration checks
+skip in a server environment without GTK. Live audio and desktop controls still
+need a running speech server and desktop session for an end-to-end check.
