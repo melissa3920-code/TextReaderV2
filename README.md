@@ -91,7 +91,9 @@ running at `http://127.0.0.1:5000`.
 ## Using the Windows app
 
 Use **Pause**, **Resume**, **Previous**, **Next**, and **Stop** to control reading.
-Speed applies to generated speech; volume controls playback. The app remembers
+Speed applies to generated speech; volume controls playback. Each section starts
+with a short 300 ms silent lead-in to protect the first word during audio-device
+startup. The app remembers
 the selected engine, a voice for each engine, speed, volume, and Piper model path.
 Existing Piper settings are retained. Settings are stored in
 `%LOCALAPPDATA%\TextReader\settings.json`.

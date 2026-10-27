@@ -1,4 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
-  <ItemGroup><Compile Include="../TextReaderV2/SpeechApi.cs" Link="SpeechApi.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../TextReaderV2/SpeechApi.cs" Link="SpeechApi.cs" /><Compile Include="../TextReaderV2/WaveAudio.cs" Link="WaveAudio.cs" /></ItemGroup>
 </Project>

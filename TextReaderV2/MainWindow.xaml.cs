@@ -516,6 +516,7 @@ namespace TextReader
                         thisRequest.Token);
 
                 thisRequest.Token.ThrowIfCancellationRequested();
+                wavAudio = WaveAudio.AddPlaybackLeadIn(wavAudio);
 
                 string tempFile = Path.Combine(
                     Path.GetTempPath(),
@@ -580,6 +581,7 @@ namespace TextReader
 
             playWhenOpened = false;
             isPaused = false;
+            mediaPlayer.Position = TimeSpan.Zero;
             mediaPlayer.Play();
 
             ReadingProgress.Value = currentChunkIndex + 1;

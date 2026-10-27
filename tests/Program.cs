@@ -36,6 +36,8 @@ foreach (string body in new[] { "{}", "{\"voices\":[]}" })
     try { await SpeechApi.LoadKokoroVoicesAsync(client, default); throw new Exception("Expected invalid voice response"); }
     catch (InvalidDataException) { Console.WriteLine("PASS: Empty or malformed voice list rejected"); }
 }
+WaveAudioTests.Run(Check);
+
 if (args.Contains("--live"))
 {
     using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
@@ -45,6 +47,10 @@ if (args.Contains("--live"))
     using var response = await client.SendAsync(request);
     response.EnsureSuccessStatusCode();
     byte[] audio = await response.Content.ReadAsByteArrayAsync();
+    byte[] padded = WaveAudio.AddPlaybackLeadIn(audio);
+    int dataStart = WaveAudioTests.DataStart(audio);
+    int lead = padded.Length - audio.Length;
+    Check(padded.AsSpan(dataStart + lead).SequenceEqual(audio.AsSpan(dataStart)), "Live speech samples preserved after lead-in");
     Check(audio.Length > 1000 && Encoding.ASCII.GetString(audio, 0, 4) == "RIFF" && Encoding.ASCII.GetString(audio, 8, 4) == "WAVE", "Live server returns playable WAV audio");
 }
 
