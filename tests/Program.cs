@@ -37,6 +37,7 @@ foreach (string body in new[] { "{}", "{\"voices\":[]}" })
     catch (InvalidDataException) { Console.WriteLine("PASS: Empty or malformed voice list rejected"); }
 }
 WaveAudioTests.Run(Check);
+await SpeechPrefetchTests.RunAsync(Check);
 
 if (args.Contains("--live"))
 {

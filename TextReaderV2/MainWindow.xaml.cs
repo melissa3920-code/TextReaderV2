@@ -66,6 +66,7 @@ namespace TextReader
         private readonly HttpClient httpClient;
         private readonly MediaPlayer mediaPlayer;
         private readonly List<string> speechChunks = new();
+        private readonly SpeechPrefetch prefetch = new();
 
         private CancellationTokenSource? speechRequest;
         private Process? piperProcess;
@@ -492,6 +493,7 @@ namespace TextReader
             CancelSpeechRequest();
             CloseAndDeleteCurrentAudio();
 
+            playWhenOpened = false;
             speechRequest = new CancellationTokenSource();
             CancellationTokenSource thisRequest = speechRequest;
 
@@ -502,21 +504,9 @@ namespace TextReader
                     $"Generating section {currentChunkIndex + 1} " +
                     $"of {speechChunks.Count}...";
 
-                using HttpRequestMessage request = SpeechApi.CreateSpeechRequest(
-                    IsKokoro, speechChunks[currentChunkIndex],
-                    VoiceComboBox.SelectedItem as string ?? SavedVoice, RateSlider.Value);
-
-                using HttpResponseMessage response =
-                    await httpClient.SendAsync(request, thisRequest.Token);
-
-                response.EnsureSuccessStatusCode();
-
-                byte[] wavAudio =
-                    await response.Content.ReadAsByteArrayAsync(
-                        thisRequest.Token);
-
+                byte[] wavAudio = await prefetch.TakeAsync(
+                    CreateSpeechKey(currentChunkIndex), GenerateAudioAsync, thisRequest.Token);
                 thisRequest.Token.ThrowIfCancellationRequested();
-                wavAudio = WaveAudio.AddPlaybackLeadIn(wavAudio);
 
                 string tempFile = Path.Combine(
                     Path.GetTempPath(),
@@ -543,6 +533,7 @@ namespace TextReader
             catch (HttpRequestException exception)
             {
                 isReadingSession = false;
+                prefetch.Clear();
                 UpdateConnectionButton(ConnectionState.Disconnected);
                 StatusText.Text = "The speech request failed.";
 
@@ -555,6 +546,7 @@ namespace TextReader
             catch (Exception exception)
             {
                 isReadingSession = false;
+                prefetch.Clear();
                 StatusText.Text = "Unable to generate or play the speech.";
 
                 MessageBox.Show(
@@ -572,6 +564,34 @@ namespace TextReader
             }
         }
 
+        private SpeechKey CreateSpeechKey(int index) => new(index, IsKokoro, speechChunks[index],
+            VoiceComboBox.SelectedItem as string ?? SavedVoice, RateSlider.Value);
+
+        private async Task<byte[]> GenerateAudioAsync(SpeechKey key, CancellationToken token)
+        {
+            using HttpRequestMessage request = SpeechApi.CreateSpeechRequest(
+                key.Kokoro, key.Text, key.Voice, key.Rate);
+            using HttpResponseMessage response = await httpClient.SendAsync(request, token);
+            response.EnsureSuccessStatusCode();
+            byte[] audio = await response.Content.ReadAsByteArrayAsync(token);
+            token.ThrowIfCancellationRequested();
+            return WaveAudio.AddPlaybackLeadIn(audio);
+        }
+
+        private void PrefetchNextChunk()
+        {
+            int nextIndex = currentChunkIndex + 1;
+            if (isReadingSession && nextIndex < speechChunks.Count)
+                prefetch.Prime(CreateSpeechKey(nextIndex), GenerateAudioAsync);
+        }
+
+        private void RefreshPrefetch()
+        {
+            prefetch.Clear();
+            if (currentAudioFile is not null && !playWhenOpened)
+                PrefetchNextChunk();
+        }
+
         private void MediaPlayer_MediaOpened(
             object? sender,
             EventArgs e)
@@ -583,6 +603,7 @@ namespace TextReader
             isPaused = false;
             mediaPlayer.Position = TimeSpan.Zero;
             mediaPlayer.Play();
+            PrefetchNextChunk();
 
             ReadingProgress.Value = currentChunkIndex + 1;
             UpdateProgressDisplay();
@@ -618,6 +639,7 @@ namespace TextReader
             isReadingSession = false;
             playWhenOpened = false;
             isPaused = false;
+            prefetch.Clear();
 
             CloseAndDeleteCurrentAudio();
 
@@ -822,6 +844,7 @@ namespace TextReader
             if (!isLoadingSettings)
             {
                 settings.Rate = e.NewValue;
+                RefreshPrefetch();
                 SaveSettings();
             }
         }
@@ -854,7 +877,10 @@ namespace TextReader
                     settings.VoiceName = voiceName;
 
                 if (!isLoadingSettings)
+                {
+                    RefreshPrefetch();
                     SaveSettings();
+                }
             }
         }
 
@@ -987,6 +1013,7 @@ namespace TextReader
             isPaused = false;
 
             CancelSpeechRequest();
+            prefetch.Clear();
             CloseAndDeleteCurrentAudio();
 
             if (speechChunks.Count > 0)
@@ -1008,6 +1035,7 @@ namespace TextReader
             isPaused = false;
 
             CancelSpeechRequest();
+            prefetch.Clear();
             CloseAndDeleteCurrentAudio();
 
             if (clearQueue)

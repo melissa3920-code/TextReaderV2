@@ -20,6 +20,10 @@ saved separately. Existing Piper settings are retained.
 The Windows x64 executable includes its .NET runtime. Visual Studio and a
 separate .NET installation are not required to run it.
 
+The app prepares the next section while the current section plays, reusing
+that audio at the transition. Voice and speed changes invalidate prefetched
+audio, and Stop or navigation cancels work that is no longer needed.
+
 Each section includes a 300 ms silent lead-in before speech to protect the
 first word when the playback device starts. The generated speech samples are
 preserved, and WAV lengths are normalized before playback.

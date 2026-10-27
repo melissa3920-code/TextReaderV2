@@ -91,6 +91,10 @@ running at `http://127.0.0.1:5000`.
 ## Using the Windows app
 
 Use **Pause**, **Resume**, **Previous**, **Next**, and **Stop** to control reading.
+While a section plays, the app prepares the next section in the background to
+reduce pauses. Changing the voice or speed discards outdated prefetched audio;
+Stop, navigation, and engine changes cancel unneeded requests.
+
 Speed applies to generated speech; volume controls playback. Each section starts
 with a short 300 ms silent lead-in to protect the first word during audio-device
 startup. The app remembers
