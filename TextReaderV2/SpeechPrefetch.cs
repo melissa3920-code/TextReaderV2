@@ -1,6 +1,7 @@
 namespace TextReader;
 
-internal sealed record SpeechKey(int Index, bool Kokoro, string Text, string Voice, double Rate);
+internal sealed record SpeechKey(int Index, bool Kokoro, string Text, string Voice, double Rate,
+    int LeadInMilliseconds = WaveAudio.DefaultLeadInMilliseconds);
 
 // Accessed on the UI thread; only the background generation task runs concurrently.
 internal sealed class SpeechPrefetch

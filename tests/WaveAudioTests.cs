@@ -6,15 +6,16 @@ internal static class WaveAudioTests
 {
     internal static void Run(Action<bool, string> check)
     {
+        foreach (int delay in new[] {0, 50, 100, 150, 200, 300, 500})
         foreach (var (format, bits, channels, streaming) in new[] {
             (1,16,1,false), (1,16,2,false), (1,8,1,false), (3,32,2,false), (1,16,1,true) })
         {
             byte[] original = CreateWave(format, bits, channels, streaming);
-            byte[] padded = WaveAudio.AddPlaybackLeadIn(original);
+            byte[] padded = WaveAudio.AddPlaybackLeadIn(original, delay);
             int start = DataStart(original), align = channels * bits / 8;
-            int lead = 24000 * WaveAudio.LeadInMilliseconds / 1000 * align;
+            int lead = 24000 * delay / 1000 * align;
             check(padded.AsSpan(start + lead).SequenceEqual(original.AsSpan(start)),
-                $"First and remaining speech samples preserved ({format}/{bits}/{channels}, streaming={streaming})");
+                $"First and remaining speech samples preserved ({format}/{bits}/{channels}, streaming={streaming}, delay={delay}ms)");
             byte silence = bits == 8 ? (byte)128 : (byte)0;
             check(padded.AsSpan(start, lead).IndexOfAnyExcept(silence) == -1,
                 "Lead-in contains format-correct silence");

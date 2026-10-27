@@ -565,7 +565,7 @@ namespace TextReader
         }
 
         private SpeechKey CreateSpeechKey(int index) => new(index, IsKokoro, speechChunks[index],
-            VoiceComboBox.SelectedItem as string ?? SavedVoice, RateSlider.Value);
+            VoiceComboBox.SelectedItem as string ?? SavedVoice, RateSlider.Value, settings.LeadInMilliseconds);
 
         private async Task<byte[]> GenerateAudioAsync(SpeechKey key, CancellationToken token)
         {
@@ -575,7 +575,7 @@ namespace TextReader
             response.EnsureSuccessStatusCode();
             byte[] audio = await response.Content.ReadAsByteArrayAsync(token);
             token.ThrowIfCancellationRequested();
-            return WaveAudio.AddPlaybackLeadIn(audio);
+            return WaveAudio.AddPlaybackLeadIn(audio, key.LeadInMilliseconds);
         }
 
         private void PrefetchNextChunk()
@@ -583,6 +583,17 @@ namespace TextReader
             int nextIndex = currentChunkIndex + 1;
             if (isReadingSession && nextIndex < speechChunks.Count)
                 prefetch.Prime(CreateSpeechKey(nextIndex), GenerateAudioAsync);
+        }
+
+        private void LeadInComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!windowReady || isLoadingSettings) return;
+            if (int.TryParse(LeadInComboBox.SelectedValue as string, out int milliseconds))
+            {
+                settings.LeadInMilliseconds = milliseconds;
+                RefreshPrefetch();
+                SaveSettings();
+            }
         }
 
         private void RefreshPrefetch()
@@ -1119,6 +1130,13 @@ namespace TextReader
                 settings.Voices ??= new();
                 if (settings.Engine != "kokoro") settings.Engine = "piper";
                 EngineComboBox.SelectedIndex = IsKokoro ? 1 : 0;
+                string leadInValue = settings.LeadInMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (!LeadInComboBox.Items.Cast<ComboBoxItem>().Any(item => (string)item.Tag == leadInValue))
+                {
+                    settings.LeadInMilliseconds = WaveAudio.DefaultLeadInMilliseconds;
+                    leadInValue = settings.LeadInMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                }
+                LeadInComboBox.SelectedValue = leadInValue;
                 RateSlider.Value = Math.Clamp(settings.Rate, -10, 10);
                 VolumeSlider.Value = Math.Clamp(settings.Volume, 0, 100);
             }
@@ -1126,6 +1144,7 @@ namespace TextReader
             {
                 settings = new AppSettings();
                 EngineComboBox.SelectedIndex = 0;
+                LeadInComboBox.SelectedValue = "100";
                 RateSlider.Value = 0;
                 VolumeSlider.Value = 100;
             }
@@ -1190,6 +1209,7 @@ namespace TextReader
         private sealed class AppSettings
         {
             public string Engine { get; set; } = "piper";
+            public int LeadInMilliseconds { get; set; } = WaveAudio.DefaultLeadInMilliseconds;
             public Dictionary<string, string> Voices { get; set; } = new();
             public string PiperModelPath { get; set; } = string.Empty;
             public string VoiceName { get; set; } = string.Empty;

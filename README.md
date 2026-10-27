@@ -95,10 +95,11 @@ While a section plays, the app prepares the next section in the background to
 reduce pauses. Changing the voice or speed discards outdated prefetched audio;
 Stop, navigation, and engine changes cancel unneeded requests.
 
-Speed applies to generated speech; volume controls playback. Each section starts
-with a short 300 ms silent lead-in to protect the first word during audio-device
-startup. The app remembers
-the selected engine, a voice for each engine, speed, volume, and Piper model path.
+Speed applies to generated speech; volume controls playback. Use **Lead-in** to choose the silence before each section: 0, 50, 100, 150,
+200, 300, or 500 ms. The default is **100 ms**. If opening words are clipped,
+increase it to 200 or 300 ms. Changes apply to the next section and are saved
+for future sessions. The app remembers
+the selected engine, a voice for each engine, speed, volume, lead-in delay, and Piper model path.
 Existing Piper settings are retained. Settings are stored in
 `%LOCALAPPDATA%\TextReader\settings.json`.
 

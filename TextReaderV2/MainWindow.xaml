@@ -58,6 +58,18 @@
                         <ComboBoxItem Content="Piper" Tag="piper"/>
                         <ComboBoxItem Content="Kokoro" Tag="kokoro"/>
                     </ComboBox>
+                    <TextBlock Text="Lead-in:" VerticalAlignment="Center" Margin="24,0,6,0"/>
+                    <ComboBox x:Name="LeadInComboBox" Width="90" SelectedIndex="2" SelectedValuePath="Tag"
+                              ToolTip="Silence before each section. Increase if opening words are clipped. Changes apply to the next section."
+                              SelectionChanged="LeadInComboBox_SelectionChanged">
+                        <ComboBoxItem Content="0 ms" Tag="0"/>
+                        <ComboBoxItem Content="50 ms" Tag="50"/>
+                        <ComboBoxItem Content="100 ms" Tag="100"/>
+                        <ComboBoxItem Content="150 ms" Tag="150"/>
+                        <ComboBoxItem Content="200 ms" Tag="200"/>
+                        <ComboBoxItem Content="300 ms" Tag="300"/>
+                        <ComboBoxItem Content="500 ms" Tag="500"/>
+                    </ComboBox>
                 </StackPanel>
 
                 <TextBlock Grid.Row="1" Grid.Column="0"

@@ -18,14 +18,14 @@ internal static class SpeechPrefetchTests
         check(ReferenceEquals(await waiting, audio) && calls == 1, "Prepared audio is reused without regeneration");
 
         foreach (SpeechKey changed in new[] {key with { Voice = "bf_emma" }, key with { Rate = 5 },
-            key with { Kokoro = false }, key with { Index = 2 }, key with { Text = "New session text" }})
+            key with { Kokoro = false }, key with { LeadInMilliseconds = 300 }, key with { Index = 2 }, key with { Text = "New session text" }})
         {
             CancellationToken oldToken = default;
             cache.Prime(key, (_, token) => { oldToken = token; return Task.FromResult(audio); });
             int freshCalls = 0;
             byte[] fresh = await cache.TakeAsync(changed, (_, _) => { freshCalls++; return Task.FromResult(new byte[] {9}); }, default);
             check(oldToken.IsCancellationRequested && freshCalls == 1 && fresh[0] == 9,
-                "Changed engine, voice, speed, position or text discards stale prefetch");
+                "Changed engine, voice, speed, lead-in, position or text discards stale prefetch");
         }
 
         CancellationToken stoppedToken = default;

@@ -5,10 +5,12 @@ namespace TextReader;
 
 internal static class WaveAudio
 {
-    internal const int LeadInMilliseconds = 300;
+    internal const int DefaultLeadInMilliseconds = 100;
 
-    internal static byte[] AddPlaybackLeadIn(byte[] wave)
+    internal static byte[] AddPlaybackLeadIn(byte[] wave, int leadInMilliseconds = DefaultLeadInMilliseconds)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(leadInMilliseconds);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(leadInMilliseconds, 1000);
         if (wave.Length < 12 || !wave.AsSpan(0, 4).SequenceEqual("RIFF"u8) ||
             !wave.AsSpan(8, 4).SequenceEqual("WAVE"u8))
             throw new InvalidDataException("The speech server did not return a WAV file.");
@@ -44,7 +46,7 @@ internal static class WaveAudio
                 if (sampleRate <= 0 || blockAlign <= 0 || length % blockAlign != 0)
                     throw new InvalidDataException("Invalid WAV audio format.");
                 if (format != 1 && format != 3) return wave;
-                long silenceFrames = ((long)sampleRate * LeadInMilliseconds / 1000 + 1) & ~1L;
+                long silenceFrames = ((long)sampleRate * leadInMilliseconds / 1000 + 1) & ~1L;
                 int silenceLength = checked((int)(silenceFrames * blockAlign));
                 byte[] result = new byte[checked(wave.Length + silenceLength)];
                 wave.AsSpan(0, payload).CopyTo(result);

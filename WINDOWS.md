@@ -24,8 +24,9 @@ The app prepares the next section while the current section plays, reusing
 that audio at the transition. Voice and speed changes invalidate prefetched
 audio, and Stop or navigation cancels work that is no longer needed.
 
-Each section includes a 300 ms silent lead-in before speech to protect the
-first word when the playback device starts. The generated speech samples are
+Use the **Lead-in** menu to set the silence before each section to 0, 50, 100,
+150, 200, 300, or 500 ms. The default is 100 ms. Increase it if opening words
+are clipped. The choice is saved and takes effect on the next section. The generated speech samples are
 preserved, and WAV lengths are normalized before playback.
 
 ## Build from source
