@@ -13,7 +13,7 @@ using (var kokoro = SpeechApi.CreateSpeechRequest(true, "Read this.", "af_heart"
 {
     using var json = JsonDocument.Parse(await kokoro.Content!.ReadAsStringAsync());
     var p = json.RootElement;
-    Check(kokoro.RequestUri!.AbsolutePath == "/v1/audio/speech" && p.GetProperty("input").GetString() == "Read this.", "Kokoro endpoint and text");
+    Check(kokoro.RequestUri!.AbsolutePath == "/v1/audio/speech" && p.GetProperty("input").GetString() == Pronunciation.PrepareKokoroText("Read this.", "af_heart"), "Kokoro endpoint and text");
     Check(p.GetProperty("speed").GetDouble() == 1.25 && p.GetProperty("response_format").GetString() == "wav" && !p.GetProperty("stream").GetBoolean(), "Kokoro speed and WAV response");
     Check(!p.TryGetProperty("length_scale", out _), "Kokoro does not receive Piper fields");
 }
@@ -36,6 +36,7 @@ foreach (string body in new[] { "{}", "{\"voices\":[]}" })
     try { await SpeechApi.LoadKokoroVoicesAsync(client, default); throw new Exception("Expected invalid voice response"); }
     catch (InvalidDataException) { Console.WriteLine("PASS: Empty or malformed voice list rejected"); }
 }
+PronunciationTests.Run(Check);
 WaveAudioTests.Run(Check);
 await SpeechPrefetchTests.RunAsync(Check);
 

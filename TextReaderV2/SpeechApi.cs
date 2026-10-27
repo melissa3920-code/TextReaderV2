@@ -39,7 +39,8 @@ internal static class SpeechApi
         {
             payload = new()
             {
-                ["model"] = "kokoro", ["input"] = text,
+                ["model"] = "kokoro", ["input"] = Pronunciation.PrepareKokoroText(
+                    text, string.IsNullOrWhiteSpace(voice) ? "af_heart" : voice),
                 ["voice"] = string.IsNullOrWhiteSpace(voice) ? "af_heart" : voice,
                 ["response_format"] = "wav", ["stream"] = false,
                 ["speed"] = Math.Clamp(1.0 + rate * 0.05, 0.5, 2.0)

@@ -29,6 +29,11 @@ Use the **Lead-in** menu to set the silence before each section to 0, 50, 100,
 are clipped. The choice is saved and takes effect on the next section. The generated speech samples are
 preserved, and WAV lengths are normalized before playback.
 
+English Kokoro voices receive contextual hints for “read” in clear cases such
+as “I will read” (“reed”), “I have read” (“red”), and “The pamphlet read” (“red”).
+For an ambiguous sentence, use `read(red)` or `read(reed)` to choose explicitly;
+the parentheses are not spoken. Displayed and saved text are unchanged.
+
 ## Build from source
 
 Install the .NET 10 SDK, then run from the repository root:
@@ -44,5 +49,5 @@ To also verify voice loading and WAV generation against a running local Kokoro s
     dotnet run --project tests/SpeechApi.Tests.csproj -- --live
 
 This update adds Windows Kokoro connectivity, voice selection, speed control,
-and speech playback. The Linux files are unchanged; the Linux-specific text
-cleanup and pronunciation rules have not been ported in this update.
+and speech playback. The Linux files are unchanged. Windows now handles contextual “read” hints;
+Linux also has cleanup and pronunciation rules for additional words.

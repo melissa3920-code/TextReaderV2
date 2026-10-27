@@ -107,12 +107,30 @@ If Kokoro will not connect, check that `http://127.0.0.1:8880/docs` opens and
 that the server has finished loading, then reconnect. If `dotnet` is not found,
 install the **SDK** (not just the runtime), reopen PowerShell, and try again.
 
+## English pronunciation of “read”
+
+With an English Kokoro voice, the Windows app adds speech-only pronunciation
+hints when there are clear tense cues:
+
+- **Read the pamphlet** and **I will read the pamphlet** use “reed.”
+- **The pamphlet read, "All will eat."** and **I have read the pamphlet** use “red.”
+
+**I read the pamphlet** can mean either present or past tense. For an ambiguous
+sentence, type **I read(red) the pamphlet** for the past tense, or
+**I read(reed) the pamphlet** for the present tense. A space before the
+parentheses is also accepted. These pronunciation markers are not spoken.
+
+Automatic hints affect only the outgoing speech request; displayed and saved
+text are unchanged. Existing inline pronunciation overrides are respected.
+Unclear cases are left to Kokoro's normal pronunciation. Piper and non-English
+voices do not receive these English hints.
+
 ## Install on Linux
 
 See [linux/README.md](linux/README.md) for the GTK 4 app, dependencies, Piper
 setup, and Kokoro setup. The Linux app also includes text cleanup and contextual
-English pronunciation hints. Those Linux-specific features have not been ported
-to the Windows app in this update.
+English pronunciation hints. The Windows app currently adds hints for “read”; Linux has additional
+word-specific pronunciation rules and its own cleanup features.
 
 ## Tests
 
