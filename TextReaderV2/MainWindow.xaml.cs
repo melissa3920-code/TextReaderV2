@@ -1,4 +1,4 @@
-﻿using Microsoft.Win32;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -19,33 +19,33 @@ namespace TextReader
 {
     public partial class MainWindow : Window
     {
-        private enum PiperState
+        private enum ConnectionState
         {
             Disconnected,
             Connecting,
             Connected
         }
 
-        private void UpdatePiperButton(PiperState state)
+        private void UpdateConnectionButton(ConnectionState state)
         {
             switch (state)
             {
-                case PiperState.Connected:
-                    ConnectPiperButton.Content = "Piper Connected";
+                case ConnectionState.Connected:
+                    ConnectPiperButton.Content = $"{EngineName} Connected";
                     ConnectPiperButton.Background = Brushes.SeaGreen;
                     ConnectPiperButton.Foreground = Brushes.White;
                     ConnectPiperButton.BorderBrush = Brushes.DarkGreen;
                     break;
 
-                case PiperState.Connecting:
-                    ConnectPiperButton.Content = "Starting Piper...";
+                case ConnectionState.Connecting:
+                    ConnectPiperButton.Content = $"Connecting to {EngineName}...";
                     ConnectPiperButton.Background = Brushes.Goldenrod;
                     ConnectPiperButton.Foreground = Brushes.Black;
                     ConnectPiperButton.BorderBrush = Brushes.DarkGoldenrod;
                     break;
 
                 default:
-                    ConnectPiperButton.Content = "Connect / Start Piper";
+                    ConnectPiperButton.Content = IsKokoro ? "Connect to Kokoro" : "Connect / Start Piper";
                     ConnectPiperButton.Background = Brushes.IndianRed;
                     ConnectPiperButton.Foreground = Brushes.White;
                     ConnectPiperButton.BorderBrush = Brushes.DarkRed;
@@ -59,8 +59,9 @@ namespace TextReader
         private static readonly Uri PiperVoicesAddress =
             new("http://127.0.0.1:5000/voices");
 
-        private static readonly Uri PiperSynthesizeAddress =
-            new("http://127.0.0.1:5000/synthesize");
+        private bool IsKokoro => settings.Engine == "kokoro";
+        private string EngineName => IsKokoro ? "Kokoro" : "Piper";
+        private bool windowReady;
 
         private readonly HttpClient httpClient;
         private readonly MediaPlayer mediaPlayer;
@@ -102,13 +103,15 @@ namespace TextReader
         private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
             LoadSettings();
+            windowReady = true;
 
-            bool connected = await TryConnectToPiperAsync(showFailure: false);
+            bool connected = await TryConnectAsync(showFailure: false);
 
             if (!connected)
             {
-                UpdatePiperButton(PiperState.Disconnected);
+                UpdateConnectionButton(ConnectionState.Disconnected);
                 StatusText.Text =
+                    IsKokoro ? "Start Kokoro-FastAPI, then click Connect to Kokoro." :
                     "Start Piper in the CLI, or click Connect / Start Piper.";
             }
         }
@@ -118,20 +121,80 @@ namespace TextReader
             RoutedEventArgs e)
         {
             ConnectPiperButton.IsEnabled = false;
+            EngineComboBox.IsEnabled = false;
 
             try
             {
-                if (await TryConnectToPiperAsync(showFailure: false))
+                if (await TryConnectAsync(showFailure: false))
                 {
-                    StatusText.Text = "Piper is already running.";
+                    StatusText.Text = $"{EngineName} is connected.";
                     return;
                 }
 
-                await StartPiperAsync();
+                if (IsKokoro)
+                    StatusText.Text = "Start Kokoro-FastAPI on port 8880, then reconnect.";
+                else
+                {
+                    EngineComboBox.IsEnabled = false;
+                    ConnectPiperButton.IsEnabled = false;
+                    await StartPiperAsync();
+                }
             }
             finally
             {
                 ConnectPiperButton.IsEnabled = true;
+                EngineComboBox.IsEnabled = true;
+            }
+        }
+
+        private async void EngineComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!windowReady || isLoadingSettings)
+                return;
+
+            StopEverything(showStoppedMessage: false, clearQueue: true);
+            settings.Engine = (EngineComboBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "piper";
+            VoiceComboBox.ItemsSource = null;
+            SaveSettings();
+            bool connected = await TryConnectAsync(showFailure: false);
+            StatusText.Text = connected ? $"{EngineName} is connected." :
+                IsKokoro ? "Start Kokoro-FastAPI, then click Connect to Kokoro." : "Click Connect / Start Piper.";
+        }
+
+        private async Task<bool> TryConnectAsync(bool showFailure)
+        {
+            EngineComboBox.IsEnabled = false;
+            ConnectPiperButton.IsEnabled = false;
+            UpdateConnectionButton(ConnectionState.Connecting);
+            try
+            {
+                return IsKokoro ? await TryConnectToKokoroAsync(showFailure) : await TryConnectToPiperAsync(showFailure);
+            }
+            finally
+            {
+                EngineComboBox.IsEnabled = true;
+                ConnectPiperButton.IsEnabled = true;
+            }
+        }
+
+        private async Task<bool> TryConnectToKokoroAsync(bool showFailure)
+        {
+            try
+            {
+                using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(5));
+                List<string> voices = await SpeechApi.LoadKokoroVoicesAsync(httpClient, timeout.Token);
+                SelectVoices(voices, voices.Contains("af_heart") ? "af_heart" : voices[0]);
+                UpdateConnectionButton(ConnectionState.Connected);
+                return true;
+            }
+            catch (Exception exception) when (exception is HttpRequestException ||
+                exception is TaskCanceledException || exception is JsonException || exception is InvalidDataException)
+            {
+                UpdateConnectionButton(ConnectionState.Disconnected);
+                if (showFailure)
+                    MessageBox.Show("Start Kokoro-FastAPI at http://127.0.0.1:8880, then reconnect.",
+                        "Kokoro connection error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
             }
         }
 
@@ -160,7 +223,7 @@ namespace TextReader
                 SaveSettings();
             }
 
-            UpdatePiperButton(PiperState.Connecting);
+            UpdateConnectionButton(ConnectionState.Connecting);
             StatusText.Text = "Starting the local Piper server...";
 
             piperProcess = TryStartPiperProcess("py", modelPath)
@@ -168,7 +231,7 @@ namespace TextReader
 
             if (piperProcess is null)
             {
-                UpdatePiperButton(PiperState.Disconnected);
+                UpdateConnectionButton(ConnectionState.Disconnected);
 
                 MessageBox.Show(
                     "The app could not start Python.\n\n" +
@@ -195,7 +258,7 @@ namespace TextReader
                 }
             }
 
-            UpdatePiperButton(PiperState.Disconnected);
+            UpdateConnectionButton(ConnectionState.Disconnected);
 
             MessageBox.Show(
                 "The Piper process started, but its HTTP server did not " +
@@ -259,14 +322,14 @@ namespace TextReader
 
                 await LoadVoicesAsync(defaultVoice, timeout.Token);
 
-                UpdatePiperButton(PiperState.Connected);
+                UpdateConnectionButton(ConnectionState.Connected);
                 return true;
             }
             catch (Exception exception)
                 when (exception is HttpRequestException ||
                       exception is TaskCanceledException)
             {
-                UpdatePiperButton(PiperState.Disconnected);
+                UpdateConnectionButton(ConnectionState.Disconnected);
 
                 if (showFailure)
                 {
@@ -303,9 +366,6 @@ namespace TextReader
             string defaultVoice,
             CancellationToken cancellationToken)
         {
-            string? previouslySelected =
-                VoiceComboBox.SelectedItem as string ?? settings.VoiceName;
-
             List<string> voiceNames = new();
 
             try
@@ -344,21 +404,18 @@ namespace TextReader
                 .OrderBy(name => name)
                 .ToList();
 
+            SelectVoices(voiceNames, defaultVoice);
+        }
+
+        private string SavedVoice => settings.Voices.GetValueOrDefault(settings.Engine,
+            IsKokoro ? "af_heart" : settings.VoiceName);
+
+        private void SelectVoices(List<string> voiceNames, string defaultVoice)
+        {
+            string previouslySelected = SavedVoice;
             VoiceComboBox.ItemsSource = voiceNames;
-
-            string selectedVoice = voiceNames.FirstOrDefault(
-                name => string.Equals(
-                    name,
-                    previouslySelected,
-                    StringComparison.OrdinalIgnoreCase))
-                ?? voiceNames.FirstOrDefault(
-                    name => string.Equals(
-                        name,
-                        defaultVoice,
-                        StringComparison.OrdinalIgnoreCase))
-                ?? voiceNames.First();
-
-            VoiceComboBox.SelectedItem = selectedVoice;
+            VoiceComboBox.SelectedItem = voiceNames.FirstOrDefault(name =>
+                string.Equals(name, previouslySelected, StringComparison.OrdinalIgnoreCase)) ?? defaultVoice;
         }
 
         private async void ReadButton_Click(
@@ -393,9 +450,10 @@ namespace TextReader
                 return;
             }
 
-            if (!await TryConnectToPiperAsync(showFailure: false))
+            if (!await TryConnectAsync(showFailure: false))
             {
                 StatusText.Text =
+                    IsKokoro ? "Kokoro is not connected. Start Kokoro-FastAPI, then reconnect." :
                     "Piper is not connected. Click Connect / Start Piper.";
                 return;
             }
@@ -444,34 +502,12 @@ namespace TextReader
                     $"Generating section {currentChunkIndex + 1} " +
                     $"of {speechChunks.Count}...";
 
-                double lengthScale =
-                    1.0 - (RateSlider.Value * 0.05);
-
-                Dictionary<string, object> requestData = new()
-                {
-                    ["text"] = speechChunks[currentChunkIndex],
-                    ["length_scale"] = lengthScale
-                };
-
-                if (VoiceComboBox.SelectedItem is string voiceName &&
-                    !string.IsNullOrWhiteSpace(voiceName) &&
-                    voiceName != "Piper default voice")
-                {
-                    requestData["voice"] = voiceName;
-                }
-
-                string json = JsonSerializer.Serialize(requestData);
-
-                using StringContent content = new(
-                    json,
-                    Encoding.UTF8,
-                    "application/json");
+                using HttpRequestMessage request = SpeechApi.CreateSpeechRequest(
+                    IsKokoro, speechChunks[currentChunkIndex],
+                    VoiceComboBox.SelectedItem as string ?? SavedVoice, RateSlider.Value);
 
                 using HttpResponseMessage response =
-                    await httpClient.PostAsync(
-                        PiperSynthesizeAddress,
-                        content,
-                        thisRequest.Token);
+                    await httpClient.SendAsync(request, thisRequest.Token);
 
                 response.EnsureSuccessStatusCode();
 
@@ -506,12 +542,12 @@ namespace TextReader
             catch (HttpRequestException exception)
             {
                 isReadingSession = false;
-                UpdatePiperButton(PiperState.Disconnected);
+                UpdateConnectionButton(ConnectionState.Disconnected);
                 StatusText.Text = "The speech request failed.";
 
                 MessageBox.Show(
                     exception.Message,
-                    "Piper request error",
+                    $"{EngineName} request error",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
             }
@@ -811,7 +847,9 @@ namespace TextReader
         {
             if (VoiceComboBox.SelectedItem is string voiceName)
             {
-                settings.VoiceName = voiceName;
+                settings.Voices[settings.Engine] = voiceName;
+                if (!IsKokoro)
+                    settings.VoiceName = voiceName;
 
                 if (!isLoadingSettings)
                     SaveSettings();
@@ -1048,12 +1086,16 @@ namespace TextReader
                         ?? new AppSettings();
                 }
 
+                settings.Voices ??= new();
+                if (settings.Engine != "kokoro") settings.Engine = "piper";
+                EngineComboBox.SelectedIndex = IsKokoro ? 1 : 0;
                 RateSlider.Value = Math.Clamp(settings.Rate, -10, 10);
                 VolumeSlider.Value = Math.Clamp(settings.Volume, 0, 100);
             }
             catch
             {
                 settings = new AppSettings();
+                EngineComboBox.SelectedIndex = 0;
                 RateSlider.Value = 0;
                 VolumeSlider.Value = 100;
             }
@@ -1117,6 +1159,8 @@ namespace TextReader
 
         private sealed class AppSettings
         {
+            public string Engine { get; set; } = "piper";
+            public Dictionary<string, string> Voices { get; set; } = new();
             public string PiperModelPath { get; set; } = string.Empty;
             public string VoiceName { get; set; } = string.Empty;
             public double Rate { get; set; }
